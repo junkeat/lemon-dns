@@ -70,6 +70,22 @@ data class DnsProfile(
         port = 53,
         isBuiltIn = true,
       ),
+      DnsProfile(
+        id = "adguard",
+        name = "AdGuard DNS (AdBlock)",
+        primaryDns = "94.140.14.14",
+        secondaryDns = "94.140.15.15",
+        port = 53,
+        isBuiltIn = true,
+      ),
+      DnsProfile(
+        id = "controld-ads",
+        name = "Control D (AdBlock)",
+        primaryDns = "76.76.2.2",
+        secondaryDns = "76.76.10.2",
+        port = 53,
+        isBuiltIn = true,
+      ),
     )
   }
 }

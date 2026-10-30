@@ -415,8 +415,9 @@ function MainScreen() {
 
             <Text style={styles.settingLabel}>Default Presets</Text>
             <Text style={styles.settingDescription}>
-              Restore built-in Cloudflare (1.1.1.1), Google (8.8.8.8), and Quad9
-              (9.9.9.9) profiles while keeping your custom profiles.
+              Restore built-in Cloudflare (1.1.1.1), Google (8.8.8.8), Quad9
+              (9.9.9.9), AdGuard DNS (94.140.14.14), and Control D (76.76.2.2)
+              profiles while keeping your custom profiles.
             </Text>
             <TouchableOpacity
               style={styles.secondaryActionButton}

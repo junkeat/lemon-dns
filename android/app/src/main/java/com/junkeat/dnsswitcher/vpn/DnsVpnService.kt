@@ -49,18 +49,6 @@ class DnsVpnService : VpnService() {
         DnsTileService.requestTileSync(applicationContext)
         return START_STICKY
       }
-      ACTION_CYCLE_PROFILE -> {
-        val profiles = repository.getProfiles()
-        if (profiles.size > 1) {
-          val currentId = repository.getActiveProfileId()
-          val currentIndex = profiles.indexOfFirst { it.id == currentId }.coerceAtLeast(0)
-          val nextProfile = profiles[(currentIndex + 1) % profiles.size]
-          repository.setActiveProfile(nextProfile.id)
-          applyUpstreamHotSwap(nextProfile.toUpstream())
-          DnsTileService.requestTileSync(applicationContext)
-        }
-        return START_STICKY
-      }
       else -> {
         val activeProfile = repository.getActiveProfile()
         currentUpstream = activeProfile.toUpstream()
@@ -220,16 +208,6 @@ class DnsVpnService : VpnService() {
       PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
     )
 
-    val cycleIntent = Intent(this, DnsVpnService::class.java).apply {
-      action = ACTION_CYCLE_PROFILE
-    }
-    val cyclePendingIntent = PendingIntent.getService(
-      this,
-      2,
-      cycleIntent,
-      PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-    )
-
     val stopIntent = Intent(this, DnsVpnService::class.java).apply {
       action = ACTION_STOP
     }
@@ -258,13 +236,6 @@ class DnsVpnService : VpnService() {
       .addAction(
         Notification.Action.Builder(
           null,
-          "Next Profile",
-          cyclePendingIntent,
-        ).build(),
-      )
-      .addAction(
-        Notification.Action.Builder(
-          null,
           "Stop",
           stopPendingIntent,
         ).build(),
@@ -276,7 +247,6 @@ class DnsVpnService : VpnService() {
     const val ACTION_START = "com.junkeat.dnsswitcher.action.START_VPN"
     const val ACTION_STOP = "com.junkeat.dnsswitcher.action.STOP_VPN"
     const val ACTION_SWITCH_UPSTREAM = "com.junkeat.dnsswitcher.action.SWITCH_UPSTREAM"
-    const val ACTION_CYCLE_PROFILE = "com.junkeat.dnsswitcher.action.CYCLE_PROFILE"
     const val EXTRA_UPSTREAM_ID = "extra_upstream_id"
 
     private const val VPN_SESSION_NAME = "LemonDNS"

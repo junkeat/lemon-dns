@@ -27,16 +27,28 @@ class DnsProfileRepository private constructor(context: Context) {
       saveProfilesInternal(defaults)
       prefs.edit()
         .putString(KEY_ACTIVE_PROFILE_ID, defaults.first().id)
+        .putInt(KEY_SEED_VERSION, CURRENT_SEED_VERSION)
         .apply()
     } else {
-      val profiles = getProfiles()
+      val profiles = getProfiles().toMutableList()
       if (profiles.isEmpty()) {
         val defaults = DnsProfile.defaultPresets()
         saveProfilesInternal(defaults)
         prefs.edit()
           .putString(KEY_ACTIVE_PROFILE_ID, defaults.first().id)
+          .putInt(KEY_SEED_VERSION, CURRENT_SEED_VERSION)
           .apply()
       } else {
+        val seedVersion = prefs.getInt(KEY_SEED_VERSION, 1)
+        if (seedVersion < CURRENT_SEED_VERSION) {
+          for (preset in DnsProfile.defaultPresets()) {
+            if (profiles.none { it.id == preset.id }) {
+              profiles.add(preset)
+            }
+          }
+          saveProfilesInternal(profiles)
+          prefs.edit().putInt(KEY_SEED_VERSION, CURRENT_SEED_VERSION).apply()
+        }
         val activeId = prefs.getString(KEY_ACTIVE_PROFILE_ID, null)
         if (activeId == null || profiles.none { it.id == activeId }) {
           prefs.edit()
@@ -176,7 +188,7 @@ class DnsProfileRepository private constructor(context: Context) {
       if (index >= 0) {
         currentList[index] = preset
       } else {
-        currentList.add(0, preset)
+        currentList.add(preset)
       }
     }
     saveProfilesInternal(currentList)
@@ -204,6 +216,8 @@ class DnsProfileRepository private constructor(context: Context) {
     private const val KEY_PROFILES_JSON = "profiles_json"
     private const val KEY_ACTIVE_PROFILE_ID = "active_profile_id"
     private const val KEY_START_ON_BOOT = "start_on_boot"
+    private const val KEY_SEED_VERSION = "seed_version"
+    private const val CURRENT_SEED_VERSION = 2
 
     @Volatile
     private var instance: DnsProfileRepository? = null
