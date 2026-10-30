@@ -115,6 +115,7 @@ class DnsSwitcherModule(
     try {
       val profile = repository.setActiveProfile(profileId)
       DnsVpnService.hotSwapUpstream(profile.toUpstream())
+      com.junkeat.dnsswitcher.vpn.DnsTileService.requestTileSync(reactContext)
       promise.resolve(buildStateMap())
     } catch (e: Exception) {
       promise.reject("ERR_SET_ACTIVE_PROFILE", e.message, e)
