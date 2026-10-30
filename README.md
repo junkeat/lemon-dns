@@ -1,97 +1,184 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+<p align="center">
+  <img src="android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png" width="120" height="120" alt="LemonDNS Logo" />
+</p>
 
-# Getting Started
+<h1 align="center">LemonDNS</h1>
 
-> **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
+<p align="center">
+  <strong>Seamless, zero-drop DNS switcher for Android (No Root)</strong><br/>
+  Built with Kotlin <code>VpnService</code> & React Native (TypeScript)
+</p>
 
-## Step 1: Start Metro
+---
 
-First, you will need to run **Metro**, the JavaScript build tool for React Native.
+## Overview
 
-To start the Metro dev server, run the following command from the root of your React Native project:
+**LemonDNS** (`com.junkeat.dnsswitcher`) is a lightweight Android DNS switcher that lets you maintain a list of DNS profiles and switch between them **instantly with zero dropped connections and no VPN restart**.
 
-```sh
-# Using npm
+Unlike full-tunnel VPNs that route all device traffic through a remote server, LemonDNS creates a **local split-tunnel interface** that captures *only* DNS requests (`10.111.222.2/32`) and forwards them directly from your device to your chosen DNS resolver. All other traffic (web browsing, video streams, downloads, gaming, WebSockets) bypasses the tunnel completely.
+
+---
+
+## Key Features
+
+- **Zero-Drop Instant Hot-Swap**: Switch between DNS resolvers on the fly while the VPN is active. The TUN interface (`ParcelFileDescriptor`) never closes or restarts during a switch, so active downloads, calls, and streams never drop.
+- **Split-Tunnel DNS Capture Only**: Assigns virtual TUN client IP `10.111.222.1/30` and routes only virtual DNS address `10.111.222.2/32` into the tunnel. Zero bandwidth overhead on non-DNS traffic.
+- **Built-in Fast & Ad-Blocking Presets**:
+  - **Cloudflare**: `1.1.1.1` • `1.0.0.1`
+  - **Google**: `8.8.8.8` • `8.8.4.4`
+  - **Quad9**: `9.9.9.9` • `149.112.112.112`
+  - **AdGuard DNS (AdBlock)**: `94.140.14.14` • `94.140.15.15`
+  - **Control D (AdBlock)**: `76.76.2.2` • `76.76.10.2`
+- **Custom DNS Profiles (CRUD)**: Create, edit, and delete custom IPv4 DNS profiles with primary DNS, optional secondary DNS, and custom UDP/TCP port validation.
+- **Automatic Secondary Failover & RFC 1035 TCP Fallback**:
+  - Automatically falls back to the profile's secondary DNS server if the primary server times out.
+  - Automatically retries truncated UDP DNS responses (`TC=1`) over a protected TCP socket so large DNS records (CDNs, DNSSEC, TXT records) always resolve cleanly.
+- **Quick Settings Tile & Boot Receiver**:
+  - Toggle LemonDNS directly from your Android Quick Settings shade without opening the app.
+  - Optional **Start on Device Boot** (`BOOT_COMPLETED`) support.
+  - Native Kotlin `SharedPreferences` storage acts as the single source of truth so the VPN service, Quick Settings tile, and boot receiver work even when the React Native UI is closed.
+- **Strict Privacy**: Zero DNS query logging, zero domain inspection, zero analytics, and zero unnecessary third-party dependencies.
+
+---
+
+## Architecture
+
+```text
+┌─────────────────────────────────────────────────────────────────┐
+│                    React Native UI (App.tsx)                    │
+│     • On/Off Control  • Profile List  • Add/Edit  • Settings    │
+└───────────────────────────────┬─────────────────────────────────┘
+                                │ NativeModules.DnsSwitcher
+                                │ + RCTDeviceEventEmitter
+┌───────────────────────────────▼─────────────────────────────────┐
+│             Kotlin Native Layer (com.junkeat.dnsswitcher)       │
+│                                                                 │
+│  ┌──────────────────────┐        ┌───────────────────────────┐  │
+│  │ DnsProfileRepository │◄───────┤ DnsTileService (QS Tile)  │  │
+│  │ (Native Storage SoT) │◄───────┤ BootReceiver (Auto-Start) │  │
+│  └──────────┬───────────┘        └───────────────────────────┘  │
+│             │                                                   │
+│  ┌──────────▼────────────────────────────────────────────────┐  │
+│  │ DnsVpnService (Android 14/15 systemExempted FGS)          │  │
+│  │  • TUN Client: 10.111.222.1/30                            │  │
+│  │  • Virtual DNS & Route: 10.111.222.2/32 (Split-Tunnel)    │  │
+│  └──────────┬────────────────────────────────────────────────┘  │
+│             │                                                   │
+│  ┌──────────▼────────────────────────────────────────────────┐  │
+│  │ DnsPacketLoop & UdpPacketCodec                            │  │
+│  │  • AtomicReference<DnsUpstream> (Hot-Swap in-place)       │  │
+│  │  • Raw IPv4 + UDP header parser & checksum builder        │  │
+│  │  • Protected UDP DatagramSocket + TCP (TC=1) fallback     │  │
+│  └───────────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Key Source Files
+
+| File | Responsibility |
+| :--- | :--- |
+| [`DnsVpnService.kt`](android/app/src/main/java/com/junkeat/dnsswitcher/vpn/DnsVpnService.kt) | Manages the split-tunnel `VpnService`, Android 14/15 `systemExempted` foreground promotion, and live upstream hot-swapping. |
+| [`DnsPacketLoop.kt`](android/app/src/main/java/com/junkeat/dnsswitcher/vpn/DnsPacketLoop.kt) | Reads raw IPv4 packets from the TUN descriptor, forwards DNS payloads over protected UDP/TCP sockets, and writes responses back. |
+| [`UdpPacketCodec.kt`](android/app/src/main/java/com/junkeat/dnsswitcher/vpn/UdpPacketCodec.kt) | Parses IPv4 + UDP port 53 packets and constructs valid IPv4 + UDP response packets with IPv4 header and UDP pseudo-header checksums. |
+| [`DnsProfileRepository.kt`](android/app/src/main/java/com/junkeat/dnsswitcher/storage/DnsProfileRepository.kt) | Thread-safe native persistence for profiles, active profile selection, and boot settings. |
+| [`DnsTileService.kt`](android/app/src/main/java/com/junkeat/dnsswitcher/vpn/DnsTileService.kt) | Android Quick Settings tile integration. |
+| [`BootReceiver.kt`](android/app/src/main/java/com/junkeat/dnsswitcher/vpn/BootReceiver.kt) | Starts the VPN service automatically on device boot when enabled. |
+| [`DnsSwitcherModule.kt`](android/app/src/main/java/com/junkeat/dnsswitcher/bridge/DnsSwitcherModule.kt) | React Native bridge exposing VPN controls, profile CRUD, and `DnsSwitcherStateChanged` events. |
+| [`App.tsx`](App.tsx) | React Native UI for status control, profile switching, profile editor, and settings. |
+
+---
+
+## Prerequisites & Setup Guide
+
+### 1. Requirements
+- **Node.js**: `>= 22.11.0`
+- **JDK**: Java 17 or Java 21
+- **Android SDK**:
+  - `minSdkVersion`: `26` (Android 8.0+)
+  - `targetSdkVersion`: `36` / `compileSdkVersion`: `37`
+  - Android SDK `platform-tools` (`adb`) installed
+- **Physical Android Device**: Recommended for testing (`VpnService` is unreliable on emulators).
+
+### 2. Clone & Install Dependencies
+
+```bash
+git clone https://github.com/<your-username>/dns-switcher.git
+cd dns-switcher
+npm install
+```
+
+### 3. Configure Android SDK Environment
+
+Ensure `ANDROID_HOME` is set and `platform-tools` is in your `PATH`:
+
+**Windows (PowerShell):**
+```powershell
+$env:ANDROID_HOME = "$env:LOCALAPPDATA\Android\Sdk"
+$env:Path += ";$env:ANDROID_HOME\platform-tools;$env:ANDROID_HOME\emulator"
+```
+
+**macOS / Linux (Bash/Zsh):**
+```bash
+export ANDROID_HOME="$HOME/Library/Android/sdk" # or $HOME/Android/Sdk on Linux
+export PATH="$PATH:$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator"
+```
+
+*(Alternatively, create `android/local.properties` with `sdk.dir=/path/to/your/Android/Sdk`.)*
+
+### 4. Connect a Physical Android Device
+
+1. Enable **Developer options** on your Android phone (*Settings > About phone > Software information > tap **Build number** 7 times*).
+2. *(Samsung One UI devices)* Turn off **Auto Blocker** under *Settings > Security and privacy > Auto Blocker*.
+3. Enable **USB debugging** (or **Wireless debugging**) under *Settings > Developer options*.
+4. Verify your device is connected:
+   ```bash
+   adb devices
+   ```
+
+> **Tip**: On your Android device, ensure **Private DNS** (*Settings > Network & Internet / Connections > Private DNS*) is set to **Off** so Android's stub resolver uses the VPN tunnel's DNS server instead of overriding it with system DoT.
+
+### 5. Run in Development Mode
+
+Start the Metro bundler and install the debug build on your connected device:
+
+```bash
+# Terminal 1: Start Metro
 npm start
 
-# OR using Yarn
-yarn start
-```
-
-## Step 2: Build and run your app
-
-With Metro running, open a new terminal window/pane from the root of your React Native project, and use one of the following commands to build and run your Android or iOS app:
-
-### Android
-
-```sh
-# Using npm
+# Terminal 2: Build and install on Android device
 npm run android
-
-# OR using Yarn
-yarn android
 ```
 
-### iOS
+### 6. Build a Standalone APK (No Metro Required)
 
-For iOS, remember to install CocoaPods dependencies (this only needs to be run on first clone or after updating native deps).
+To build a standalone release APK that runs independently without the Metro server:
 
-The first time you create a new project, run the Ruby bundler to install CocoaPods itself:
-
-```sh
-bundle install
+```bash
+cd android
+./gradlew assembleRelease
 ```
 
-Then, and every time you update your native dependencies, run:
-
-```sh
-bundle exec pod install
+The generated APK will be located at:
+```text
+android/app/build/outputs/apk/release/app-release.apk
 ```
 
-For more information, please visit [CocoaPods Getting Started guide](https://guides.cocoapods.org/using/getting-started.html).
-
-```sh
-# Using npm
-npm run ios
-
-# OR using Yarn
-yarn ios
+Install it onto your connected device via ADB:
+```bash
+adb install -r android/app/build/outputs/apk/release/app-release.apk
 ```
 
-If everything is set up correctly, you should see your new app running in the Android Emulator, iOS Simulator, or your connected device.
+---
 
-This is one way to run your app — you can also build it directly from Android Studio or Xcode.
+## Verifying DNS Switching & Zero Leaks
 
-## Step 3: Modify your app
+1. Open **LemonDNS** and tap **Turn On DNS VPN** (approve the one-time Android VPN connection prompt).
+2. Open your browser and visit [https://one.one.one.one/help](https://one.one.one.one/help) or [https://www.dnsleaktest.com](https://www.dnsleaktest.com).
+3. Tap any other profile in **LemonDNS** (e.g., **Google**, **Quad9**, **AdGuard DNS**, or **Control D**) while keeping a video stream or download active.
+4. Refresh the DNS leak test to verify the resolver switched immediately with zero connection drops.
 
-Now that you have successfully run the app, let's make changes!
+---
 
-Open `App.tsx` in your text editor of choice and make some changes. When you save, your app will automatically update and reflect these changes — this is powered by [Fast Refresh](https://reactnative.dev/docs/fast-refresh).
+## License
 
-When you want to forcefully reload, for example to reset the state of your app, you can perform a full reload:
-
-- **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Dev Menu**, accessed via <kbd>Ctrl</kbd> + <kbd>M</kbd> (Windows/Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (macOS).
-- **iOS**: Press <kbd>R</kbd> in iOS Simulator.
-
-## Congratulations! :tada:
-
-You've successfully run and modified your React Native App. :partying_face:
-
-### Now what?
-
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [docs](https://reactnative.dev/docs/getting-started).
-
-# Troubleshooting
-
-If you're having issues getting the above steps to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
-
-# Learn More
-
-To learn more about React Native, take a look at the following resources:
-
-- [React Native Website](https://reactnative.dev) - learn more about React Native.
-- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
-- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
-- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
-- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
+MIT
