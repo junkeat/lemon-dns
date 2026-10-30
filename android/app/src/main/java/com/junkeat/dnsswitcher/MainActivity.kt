@@ -20,12 +20,14 @@ import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate
 import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint.fabricEnabled
 import com.facebook.react.defaults.DefaultReactActivityDelegate
+import com.junkeat.dnsswitcher.vpn.DnsUpstream
 import com.junkeat.dnsswitcher.vpn.DnsVpnService
 
 class MainActivity : ReactActivity() {
 
   private var debugOverlayContainer: LinearLayout? = null
   private var statusTextView: TextView? = null
+  private var swapButton: Button? = null
   private var toggleButton: Button? = null
 
   private val vpnStateListener: () -> Unit = {
@@ -95,7 +97,7 @@ class MainActivity : ReactActivity() {
     }
 
     val titleView = TextView(this).apply {
-      text = "Phase 1 Prototype: UDP DNS Forwarder"
+      text = "Phase 2 Prototype: Zero-Drop Hot-Swap"
       setTextColor(Color.WHITE)
       setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
     }
@@ -106,6 +108,14 @@ class MainActivity : ReactActivity() {
       setPadding(0, (6 * density).toInt(), 0, (12 * density).toInt())
     }
     statusTextView = statusView
+
+    val hotSwapBtn = Button(this).apply {
+      isAllCaps = false
+      setOnClickListener {
+        DnsVpnService.toggleHardcodedUpstream()
+      }
+    }
+    swapButton = hotSwapBtn
 
     val actionButton = Button(this).apply {
       isAllCaps = false
@@ -121,6 +131,7 @@ class MainActivity : ReactActivity() {
 
     container.addView(titleView)
     container.addView(statusView)
+    container.addView(hotSwapBtn)
     container.addView(actionButton)
 
     val layoutParams = FrameLayout.LayoutParams(
@@ -138,15 +149,25 @@ class MainActivity : ReactActivity() {
 
   private fun updateDebugOverlayState() {
     val active = DnsVpnService.isRunning
-    statusTextView?.text = if (active) {
-      "Status: ACTIVE • Upstream: ${DnsVpnService.HARDCODED_UPSTREAM_DNS}:53\nVirtual DNS: 10.111.222.2/32 (Split-Tunnel)"
+    val current = DnsVpnService.currentUpstream
+    val next = if (current.id == DnsUpstream.CLOUDFLARE.id) {
+      DnsUpstream.GOOGLE
     } else {
-      "Status: STOPPED • Hardcoded Upstream: ${DnsVpnService.HARDCODED_UPSTREAM_DNS}:53"
+      DnsUpstream.CLOUDFLARE
     }
+
+    statusTextView?.text = if (active) {
+      "Status: ACTIVE (Tunnel Open)\nActive Upstream: ${current.name} (${current.address}:${current.port})"
+    } else {
+      "Status: STOPPED\nSelected Upstream: ${current.name} (${current.address}:${current.port})"
+    }
+
+    swapButton?.text = "Hot-Swap to ${next.name} (${next.address})"
+
     toggleButton?.text = if (active) {
       "Stop DNS VPN"
     } else {
-      "Start DNS VPN (1.1.1.1)"
+      "Start DNS VPN (${current.name} ${current.address})"
     }
   }
 

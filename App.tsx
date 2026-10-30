@@ -9,10 +9,13 @@ function App() {
       <SafeAreaView style={styles.container}>
         <View style={styles.content}>
           <Text style={styles.title}>DNS Switcher</Text>
-          <Text style={styles.subtitle}>Phase 1: UDP DNS VPN Prototype</Text>
+          <Text style={styles.subtitle}>
+            Phase 2: Zero-Drop Upstream Hot-Swap
+          </Text>
           <Text style={styles.instructions}>
-            Use the native control panel at the bottom of the screen to start or
-            stop the split-tunnel DNS VPN (1.1.1.1).
+            Use the native control panel at the bottom of the screen to start
+            the VPN and hot-swap between Cloudflare (1.1.1.1) and Google
+            (8.8.8.8) without closing the VPN tunnel.
           </Text>
         </View>
       </SafeAreaView>

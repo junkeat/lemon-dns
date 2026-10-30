@@ -11,24 +11,36 @@ import java.net.InetAddress
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
 
 /**
  * Reads raw IPv4 DNS query packets from the TUN interface, forwards them over protected UDP sockets
- * to the upstream DNS server, and writes raw IPv4 UDP responses back to the TUN interface.
+ * to the currently active upstream DNS server, and writes raw IPv4 UDP responses back to the TUN interface.
  *
- * Strictly never logs or stores DNS queries or domain names.
+ * Supports atomic hot-swapping of the upstream endpoint without closing the TUN interface or dropping
+ * in-flight queries. Strictly never logs or stores DNS queries or domain names.
  */
 class DnsPacketLoop(
   private val vpnService: VpnService,
   private val tunInterface: ParcelFileDescriptor,
-  private val upstreamAddress: String,
-  private val upstreamPort: Int = 53,
+  initialUpstream: DnsUpstream,
 ) {
 
   private val running = AtomicBoolean(false)
+  private val activeUpstream = AtomicReference(initialUpstream)
   private val queryExecutor = Executors.newCachedThreadPool()
   private val writeLock = Any()
   private var readerThread: Thread? = null
+
+  /**
+   * Atomically hot-swaps the upstream DNS server for all subsequent DNS queries.
+   * The TUN interface and existing in-flight queries remain completely untouched.
+   */
+  fun setUpstream(upstream: DnsUpstream) {
+    activeUpstream.set(upstream)
+  }
+
+  fun getUpstream(): DnsUpstream = activeUpstream.get()
 
   fun start() {
     if (!running.compareAndSet(false, true)) {
@@ -81,9 +93,12 @@ class DnsPacketLoop(
         break
       }
 
+      // Snapshot the active upstream at the moment the query arrives
+      val targetUpstream = activeUpstream.get()
+
       try {
         queryExecutor.execute {
-          forwardQueryAndRespond(parsedQuery, outputStream)
+          forwardQueryAndRespond(parsedQuery, targetUpstream, outputStream)
         }
       } catch (_: Exception) {
         // Executor rejected task during shutdown
@@ -91,7 +106,11 @@ class DnsPacketLoop(
     }
   }
 
-  private fun forwardQueryAndRespond(query: DnsQueryPacket, outputStream: FileOutputStream) {
+  private fun forwardQueryAndRespond(
+    query: DnsQueryPacket,
+    upstream: DnsUpstream,
+    outputStream: FileOutputStream,
+  ) {
     if (!running.get()) {
       return
     }
@@ -105,12 +124,12 @@ class DnsPacketLoop(
       }
       createdSocket.soTimeout = UPSTREAM_TIMEOUT_MS
 
-      val targetInetAddress = InetAddress.getByName(upstreamAddress)
+      val targetInetAddress = InetAddress.getByName(upstream.address)
       val outboundPacket = DatagramPacket(
         query.dnsPayload,
         query.dnsPayload.size,
         targetInetAddress,
-        upstreamPort,
+        upstream.port,
       )
       createdSocket.send(outboundPacket)
 
