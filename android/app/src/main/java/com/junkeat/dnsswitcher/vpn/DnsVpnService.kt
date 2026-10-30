@@ -199,10 +199,10 @@ class DnsVpnService : VpnService() {
       val notificationManager = getSystemService(NotificationManager::class.java)
       val channel = NotificationChannel(
         NOTIFICATION_CHANNEL_ID,
-        "DNS Switcher Status",
+        "LemonDNS Status",
         NotificationManager.IMPORTANCE_LOW,
       ).apply {
-        description = "Shows when DNS Switcher is active"
+        description = "Shows when LemonDNS is active"
         setShowBadge(false)
       }
       notificationManager?.createNotificationChannel(channel)
@@ -250,7 +250,7 @@ class DnsVpnService : VpnService() {
     val secondarySuffix = upstream.secondaryAddress?.let { " • $it" } ?: ""
 
     return notificationBuilder
-      .setContentTitle("DNS Switcher • ${upstream.name}")
+      .setContentTitle("LemonDNS • ${upstream.name}")
       .setContentText("Resolver: ${upstream.address}$secondarySuffix")
       .setSmallIcon(R.drawable.ic_qs_dns)
       .setContentIntent(contentPendingIntent)
@@ -279,7 +279,7 @@ class DnsVpnService : VpnService() {
     const val ACTION_CYCLE_PROFILE = "com.junkeat.dnsswitcher.action.CYCLE_PROFILE"
     const val EXTRA_UPSTREAM_ID = "extra_upstream_id"
 
-    private const val VPN_SESSION_NAME = "DNS Switcher"
+    private const val VPN_SESSION_NAME = "LemonDNS"
     private const val VIRTUAL_CLIENT_IP = "10.111.222.1"
     private const val VIRTUAL_DNS_IP = "10.111.222.2"
     private const val VIRTUAL_PREFIX_LENGTH = 30

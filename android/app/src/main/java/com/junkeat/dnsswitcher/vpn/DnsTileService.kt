@@ -91,13 +91,13 @@ class DnsTileService : TileService() {
 
     if (running) {
       tile.state = Tile.STATE_ACTIVE
-      tile.label = "DNS: ${activeProfile.name}"
+      tile.label = "LemonDNS: ${activeProfile.name}"
       if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
         tile.subtitle = activeProfile.primaryDns
       }
     } else {
       tile.state = Tile.STATE_INACTIVE
-      tile.label = "DNS Switcher"
+      tile.label = "LemonDNS"
       if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
         tile.subtitle = "Off (${activeProfile.name})"
       }

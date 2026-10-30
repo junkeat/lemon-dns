@@ -46,8 +46,8 @@ function MainScreen() {
   if (!state) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#38BDF8" />
-        <Text style={styles.loadingText}>Loading DNS Switcher...</Text>
+        <ActivityIndicator size="large" color="#FACC15" />
+        <Text style={styles.loadingText}>Loading LemonDNS...</Text>
       </SafeAreaView>
     );
   }
@@ -162,7 +162,7 @@ function MainScreen() {
       {/* Top Navigation Bar */}
       <View style={styles.header}>
         <View>
-          <Text style={styles.headerTitle}>DNS Switcher</Text>
+          <Text style={styles.headerTitle}>LemonDNS</Text>
           <Text style={styles.headerSubtitle}>
             Split-Tunnel • Instant Hot-Swap
           </Text>
