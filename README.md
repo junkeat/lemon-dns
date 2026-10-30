@@ -102,7 +102,7 @@ Unlike full-tunnel VPNs that route all device traffic through a remote server, L
 ### 2. Clone & Install Dependencies
 
 ```bash
-git clone https://github.com/<your-username>/dns-switcher.git
+git clone https://github.com/junkeat/lemon-dns.git
 cd dns-switcher
 npm install
 ```
