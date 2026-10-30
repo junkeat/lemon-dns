@@ -115,36 +115,21 @@ class DnsPacketLoop(
       return
     }
 
-    var socket: DatagramSocket? = null
+    val responseBytes = querySingleServer(query.dnsPayload, upstream.address, upstream.port)
+      ?: upstream.secondaryAddress?.let { secondary ->
+        if (running.get()) querySingleServer(query.dnsPayload, secondary, upstream.port) else null
+      }
+      ?: return
+
+    if (!running.get() || responseBytes.isEmpty()) {
+      return
+    }
+
     try {
-      val createdSocket = DatagramSocket()
-      socket = createdSocket
-      if (!vpnService.protect(createdSocket)) {
-        return
-      }
-      createdSocket.soTimeout = UPSTREAM_TIMEOUT_MS
-
-      val targetInetAddress = InetAddress.getByName(upstream.address)
-      val outboundPacket = DatagramPacket(
-        query.dnsPayload,
-        query.dnsPayload.size,
-        targetInetAddress,
-        upstream.port,
-      )
-      createdSocket.send(outboundPacket)
-
-      val responseBuffer = ByteArray(MAX_DNS_PAYLOAD_SIZE)
-      val inboundPacket = DatagramPacket(responseBuffer, responseBuffer.size)
-      createdSocket.receive(inboundPacket)
-
-      if (!running.get() || inboundPacket.length <= 0) {
-        return
-      }
-
       val rawIpResponse = UdpPacketCodec.buildDnsResponse(
         request = query,
-        responsePayload = responseBuffer,
-        responseLength = inboundPacket.length,
+        responsePayload = responseBytes,
+        responseLength = responseBytes.size,
       )
 
       synchronized(writeLock) {
@@ -154,7 +139,39 @@ class DnsPacketLoop(
         }
       }
     } catch (_: Exception) {
-      // Drop timed out or failed packet without logging query content
+      // Drop failed TUN write without logging query content
+    }
+  }
+
+  private fun querySingleServer(dnsPayload: ByteArray, address: String, port: Int): ByteArray? {
+    var socket: DatagramSocket? = null
+    try {
+      val createdSocket = DatagramSocket()
+      socket = createdSocket
+      if (!vpnService.protect(createdSocket)) {
+        return null
+      }
+      createdSocket.soTimeout = UPSTREAM_TIMEOUT_MS
+
+      val targetInetAddress = InetAddress.getByName(address)
+      val outboundPacket = DatagramPacket(
+        dnsPayload,
+        dnsPayload.size,
+        targetInetAddress,
+        port,
+      )
+      createdSocket.send(outboundPacket)
+
+      val responseBuffer = ByteArray(MAX_DNS_PAYLOAD_SIZE)
+      val inboundPacket = DatagramPacket(responseBuffer, responseBuffer.size)
+      createdSocket.receive(inboundPacket)
+
+      if (inboundPacket.length <= 0) {
+        return null
+      }
+      return responseBuffer.copyOfRange(0, inboundPacket.length)
+    } catch (_: Exception) {
+      return null
     } finally {
       socket?.close()
     }
@@ -163,6 +180,6 @@ class DnsPacketLoop(
   companion object {
     private const val MAX_PACKET_SIZE = 32767
     private const val MAX_DNS_PAYLOAD_SIZE = 4096
-    private const val UPSTREAM_TIMEOUT_MS = 5000
+    private const val UPSTREAM_TIMEOUT_MS = 3500
   }
 }

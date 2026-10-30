@@ -11,10 +11,11 @@ import android.os.Build
 import android.os.ParcelFileDescriptor
 import com.junkeat.dnsswitcher.MainActivity
 import com.junkeat.dnsswitcher.R
+import com.junkeat.dnsswitcher.storage.DnsProfileRepository
 
 /**
  * Split-tunnel Android VpnService that captures only traffic destined for the virtual DNS IP
- * (`10.111.222.2/32`) and forwards DNS queries to the active upstream server.
+ * (`10.111.222.2/32`) and forwards DNS queries to the active upstream server from [DnsProfileRepository].
  *
  * Supports hot-swapping the upstream server while the tunnel remains open.
  */
@@ -29,6 +30,7 @@ class DnsVpnService : VpnService() {
   }
 
   override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+    val repository = DnsProfileRepository.getInstance(applicationContext)
     when (intent?.action) {
       ACTION_STOP -> {
         stopVpnTunnel()
@@ -37,13 +39,17 @@ class DnsVpnService : VpnService() {
       }
       ACTION_SWITCH_UPSTREAM -> {
         val targetId = intent.getStringExtra(EXTRA_UPSTREAM_ID)
-        val matched = DnsUpstream.HARDCODED_UPSTREAMS.find { it.id == targetId }
-        if (matched != null) {
-          applyUpstreamHotSwap(matched)
+        val profile = if (targetId != null) {
+          runCatching { repository.setActiveProfile(targetId) }.getOrElse { repository.getActiveProfile() }
+        } else {
+          repository.getActiveProfile()
         }
+        applyUpstreamHotSwap(profile.toUpstream())
         return START_STICKY
       }
       else -> {
+        val activeProfile = repository.getActiveProfile()
+        currentUpstream = activeProfile.toUpstream()
         startVpnTunnel()
         return START_STICKY
       }
@@ -271,22 +277,16 @@ class DnsVpnService : VpnService() {
       }
     }
 
-    fun toggleHardcodedUpstream(): DnsUpstream {
-      val next = if (currentUpstream.id == DnsUpstream.CLOUDFLARE.id) {
-        DnsUpstream.GOOGLE
-      } else {
-        DnsUpstream.CLOUDFLARE
-      }
-      hotSwapUpstream(next)
-      return next
-    }
-
     fun addStateListener(listener: () -> Unit) {
       stateListeners.add(listener)
     }
 
     fun removeStateListener(listener: () -> Unit) {
       stateListeners.remove(listener)
+    }
+
+    fun notifyExternalStateChange() {
+      notifyStateChanged()
     }
 
     private fun notifyStateChanged() {
