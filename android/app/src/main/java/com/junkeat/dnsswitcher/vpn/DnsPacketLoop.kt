@@ -2,12 +2,16 @@ package com.junkeat.dnsswitcher.vpn
 
 import android.net.VpnService
 import android.os.ParcelFileDescriptor
+import java.io.DataInputStream
+import java.io.DataOutputStream
 import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.io.IOException
 import java.net.DatagramPacket
 import java.net.DatagramSocket
 import java.net.InetAddress
+import java.net.InetSocketAddress
+import java.net.Socket
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
@@ -15,7 +19,8 @@ import java.util.concurrent.atomic.AtomicReference
 
 /**
  * Reads raw IPv4 DNS query packets from the TUN interface, forwards them over protected UDP sockets
- * to the currently active upstream DNS server, and writes raw IPv4 UDP responses back to the TUN interface.
+ * (with automatic RFC 1035 TCP fallback on truncated TC=1 responses) to the currently active
+ * upstream DNS server, and writes raw IPv4 UDP responses back to the TUN interface.
  *
  * Supports atomic hot-swapping of the upstream endpoint without closing the TUN interface or dropping
  * in-flight queries. Strictly never logs or stores DNS queries or domain names.
@@ -144,6 +149,14 @@ class DnsPacketLoop(
   }
 
   private fun querySingleServer(dnsPayload: ByteArray, address: String, port: Int): ByteArray? {
+    val udpResponse = queryUdp(dnsPayload, address, port) ?: return null
+    if (isTruncatedDnsResponse(udpResponse)) {
+      return queryTcp(dnsPayload, address, port) ?: udpResponse
+    }
+    return udpResponse
+  }
+
+  private fun queryUdp(dnsPayload: ByteArray, address: String, port: Int): ByteArray? {
     var socket: DatagramSocket? = null
     try {
       val createdSocket = DatagramSocket()
@@ -175,6 +188,52 @@ class DnsPacketLoop(
     } finally {
       socket?.close()
     }
+  }
+
+  private fun queryTcp(dnsPayload: ByteArray, address: String, port: Int): ByteArray? {
+    var socket: Socket? = null
+    try {
+      val createdSocket = Socket()
+      socket = createdSocket
+      if (!vpnService.protect(createdSocket)) {
+        return null
+      }
+      createdSocket.soTimeout = UPSTREAM_TIMEOUT_MS
+      createdSocket.connect(InetSocketAddress(InetAddress.getByName(address), port), UPSTREAM_TIMEOUT_MS)
+
+      val out = DataOutputStream(createdSocket.getOutputStream())
+      out.writeShort(dnsPayload.size)
+      out.write(dnsPayload)
+      out.flush()
+
+      val input = DataInputStream(createdSocket.getInputStream())
+      val responseLength = input.readUnsignedShort()
+      if (responseLength <= 0 || responseLength > MAX_DNS_PAYLOAD_SIZE) {
+        return null
+      }
+      val responseBytes = ByteArray(responseLength)
+      input.readFully(responseBytes)
+      return responseBytes
+    } catch (_: Exception) {
+      return null
+    } finally {
+      try {
+        socket?.close()
+      } catch (_: IOException) {
+        // Ignore close error
+      }
+    }
+  }
+
+  /**
+   * Checks the TC (TrunCation) bit (bit 1 of byte 2 in the 12-byte DNS header, RFC 1035 Section 4.1.1).
+   */
+  private fun isTruncatedDnsResponse(dnsPayload: ByteArray): Boolean {
+    if (dnsPayload.size < 12) {
+      return false
+    }
+    val flagsHighByte = dnsPayload[2].toInt() and 0xFF
+    return (flagsHighByte and 0x02) != 0
   }
 
   companion object {
