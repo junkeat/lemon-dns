@@ -24,6 +24,7 @@ import com.junkeat.dnsswitcher.vpn.DnsVpnService
 
 class MainActivity : ReactActivity() {
 
+  private var debugOverlayContainer: LinearLayout? = null
   private var statusTextView: TextView? = null
   private var toggleButton: Button? = null
 
@@ -54,12 +55,12 @@ class MainActivity : ReactActivity() {
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
-    attachPrototypeDebugOverlay()
     DnsVpnService.addStateListener(vpnStateListener)
   }
 
   override fun onResume() {
     super.onResume()
+    ensurePrototypeDebugOverlayAttached()
     updateDebugOverlayState()
   }
 
@@ -68,7 +69,15 @@ class MainActivity : ReactActivity() {
     super.onDestroy()
   }
 
-  private fun attachPrototypeDebugOverlay() {
+  private fun ensurePrototypeDebugOverlayAttached() {
+    val rootContent = findViewById<FrameLayout>(android.R.id.content) ?: return
+    val existing = debugOverlayContainer
+    if (existing != null && existing.parent === rootContent) {
+      existing.bringToFront()
+      return
+    }
+    existing?.let { (it.parent as? ViewGroup)?.removeView(it) }
+
     val density = resources.displayMetrics.density
     val paddingPx = (16 * density).toInt()
     val marginPx = (16 * density).toInt()
@@ -82,7 +91,7 @@ class MainActivity : ReactActivity() {
       orientation = LinearLayout.VERTICAL
       background = cardBackground
       setPadding(paddingPx, paddingPx, paddingPx, paddingPx)
-      elevation = 8 * density
+      elevation = 16 * density
     }
 
     val titleView = TextView(this).apply {
@@ -119,11 +128,12 @@ class MainActivity : ReactActivity() {
       ViewGroup.LayoutParams.WRAP_CONTENT,
       Gravity.BOTTOM,
     ).apply {
-      setMargins(marginPx, marginPx, marginPx, (32 * density).toInt())
+      setMargins(marginPx, marginPx, marginPx, (48 * density).toInt())
     }
 
-    addContentView(container, layoutParams)
-    updateDebugOverlayState()
+    rootContent.addView(container, layoutParams)
+    container.bringToFront()
+    debugOverlayContainer = container
   }
 
   private fun updateDebugOverlayState() {
