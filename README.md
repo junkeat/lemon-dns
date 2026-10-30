@@ -103,7 +103,7 @@ Unlike full-tunnel VPNs that route all device traffic through a remote server, L
 
 ```bash
 git clone https://github.com/junkeat/lemon-dns.git
-cd dns-switcher
+cd lemon-dns
 npm install
 ```
 
