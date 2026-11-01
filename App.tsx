@@ -46,7 +46,7 @@ function MainScreen() {
   if (!state) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#FACC15" />
+        <ActivityIndicator size="large" color="#FFD60A" />
         <Text style={styles.loadingText}>Loading LemonDNS...</Text>
       </SafeAreaView>
     );
@@ -237,7 +237,13 @@ function MainScreen() {
               ]}
               onPress={handleToggleVpn}
               disabled={busy}>
-              <Text style={styles.powerButtonText}>
+              <Text
+                style={[
+                  styles.powerButtonText,
+                  state.isRunning
+                    ? styles.powerButtonTextStop
+                    : styles.powerButtonTextStart,
+                ]}>
                 {state.isRunning ? 'Turn Off DNS VPN' : 'Turn On DNS VPN'}
               </Text>
             </TouchableOpacity>
@@ -406,8 +412,8 @@ function MainScreen() {
               <Switch
                 value={state.settings.startOnBoot}
                 onValueChange={handleToggleStartOnBoot}
-                trackColor={{ false: '#334155', true: '#0284C7' }}
-                thumbColor={state.settings.startOnBoot ? '#38BDF8' : '#94A3B8'}
+                trackColor={{ false: '#003566', true: '#FFC300' }}
+                thumbColor={state.settings.startOnBoot ? '#FFD60A' : '#94A3B8'}
               />
             </View>
 
@@ -447,18 +453,18 @@ function MainScreen() {
 const styles = StyleSheet.create({
   loadingContainer: {
     flex: 1,
-    backgroundColor: '#0F172A',
+    backgroundColor: '#000814',
     alignItems: 'center',
     justifyContent: 'center',
   },
   loadingText: {
-    color: '#94A3B8',
+    color: '#FFD60A',
     marginTop: 12,
     fontSize: 15,
   },
   container: {
     flex: 1,
-    backgroundColor: '#0F172A',
+    backgroundColor: '#000814',
   },
   header: {
     flexDirection: 'row',
@@ -467,16 +473,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#1E293B',
+    borderBottomColor: '#001D3D',
   },
   headerTitle: {
     fontSize: 22,
     fontWeight: '700',
-    color: '#F8FAFC',
+    color: '#FFD60A',
   },
   headerSubtitle: {
     fontSize: 12,
-    color: '#38BDF8',
+    color: '#FFC300',
     marginTop: 2,
   },
   navRow: {
@@ -484,15 +490,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   navButton: {
-    backgroundColor: '#1E293B',
+    backgroundColor: '#001D3D',
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#003566',
   },
   navButtonText: {
-    color: '#E2E8F0',
+    color: '#FFD60A',
     fontSize: 13,
     fontWeight: '600',
   },
@@ -523,12 +529,12 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   statusCardActive: {
-    backgroundColor: '#0C2D48',
-    borderColor: '#0284C7',
+    backgroundColor: '#003566',
+    borderColor: '#FFC300',
   },
   statusCardInactive: {
-    backgroundColor: '#1E293B',
-    borderColor: '#334155',
+    backgroundColor: '#001D3D',
+    borderColor: '#003566',
   },
   statusRow: {
     flexDirection: 'row',
@@ -547,7 +553,7 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   dotActive: {
-    backgroundColor: '#22C55E',
+    backgroundColor: '#FFD60A',
   },
   dotInactive: {
     backgroundColor: '#64748B',
@@ -555,23 +561,23 @@ const styles = StyleSheet.create({
   statusBadgeText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#E2E8F0',
+    color: '#FFD60A',
     letterSpacing: 0.5,
   },
   tunnelTag: {
     fontSize: 11,
-    color: '#94A3B8',
+    color: '#CBD5E1',
     fontFamily: 'monospace',
   },
   activeProfileTitle: {
     fontSize: 26,
     fontWeight: '700',
-    color: '#F8FAFC',
+    color: '#FFFFFF',
     marginBottom: 4,
   },
   activeProfileEndpoints: {
     fontSize: 13,
-    color: '#BAE6FD',
+    color: '#FFD60A',
     marginBottom: 20,
   },
   powerButton: {
@@ -580,15 +586,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   powerButtonStart: {
-    backgroundColor: '#0284C7',
+    backgroundColor: '#FFC300',
   },
   powerButtonStop: {
     backgroundColor: '#DC2626',
   },
   powerButtonText: {
-    color: '#FFFFFF',
     fontSize: 15,
     fontWeight: '700',
+  },
+  powerButtonTextStart: {
+    color: '#000814',
+  },
+  powerButtonTextStop: {
+    color: '#FFFFFF',
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -599,7 +610,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#F8FAFC',
+    color: '#FFFFFF',
   },
   sectionHint: {
     fontSize: 12,
@@ -608,30 +619,30 @@ const styles = StyleSheet.create({
     maxWidth: 260,
   },
   addButton: {
-    backgroundColor: '#0284C7',
+    backgroundColor: '#FFC300',
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 8,
   },
   addButtonText: {
-    color: '#FFFFFF',
+    color: '#000814',
     fontWeight: '700',
     fontSize: 13,
   },
   profileCard: {
-    backgroundColor: '#1E293B',
+    backgroundColor: '#001D3D',
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#003566',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
   profileCardSelected: {
-    borderColor: '#38BDF8',
-    backgroundColor: '#172554',
+    borderColor: '#FFD60A',
+    backgroundColor: '#003566',
   },
   profileCardMain: {
     flex: 1,
@@ -645,7 +656,7 @@ const styles = StyleSheet.create({
   profileName: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#F8FAFC',
+    color: '#FFFFFF',
     marginRight: 8,
   },
   activePill: {
@@ -654,71 +665,73 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   activePillLive: {
-    backgroundColor: '#15803D',
+    backgroundColor: '#FFD60A',
   },
   activePillSelected: {
-    backgroundColor: '#0369A1',
+    backgroundColor: '#FFC300',
   },
   activePillText: {
-    color: '#FFFFFF',
+    color: '#000814',
     fontSize: 10,
     fontWeight: '700',
   },
   profileIpText: {
     fontSize: 13,
-    color: '#94A3B8',
+    color: '#CBD5E1',
     fontFamily: 'monospace',
   },
   editButton: {
-    backgroundColor: '#334155',
+    backgroundColor: '#000814',
+    borderWidth: 1,
+    borderColor: '#003566',
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
   },
   editButtonText: {
-    color: '#E2E8F0',
+    color: '#FFD60A',
     fontSize: 12,
     fontWeight: '600',
   },
   formCard: {
-    backgroundColor: '#1E293B',
+    backgroundColor: '#001D3D',
     borderRadius: 14,
     padding: 20,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#003566',
   },
   formTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#F8FAFC',
+    color: '#FFD60A',
     marginBottom: 16,
   },
   inputLabel: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#CBD5E1',
+    color: '#FFC300',
     marginBottom: 6,
     marginTop: 12,
   },
   textInput: {
-    backgroundColor: '#0F172A',
+    backgroundColor: '#000814',
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#003566',
     borderRadius: 8,
     paddingHorizontal: 14,
     paddingVertical: 11,
-    color: '#F8FAFC',
+    color: '#FFFFFF',
     fontSize: 15,
   },
   saveButton: {
-    backgroundColor: '#0284C7',
+    backgroundColor: '#FFC300',
     paddingVertical: 14,
     borderRadius: 10,
     alignItems: 'center',
     marginTop: 24,
   },
   saveButtonText: {
-    color: '#FFFFFF',
+    color: '#000814',
     fontSize: 15,
     fontWeight: '700',
   },
@@ -748,28 +761,30 @@ const styles = StyleSheet.create({
   settingLabel: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#F8FAFC',
+    color: '#FFD60A',
     marginBottom: 4,
   },
   settingDescription: {
     fontSize: 13,
-    color: '#94A3B8',
+    color: '#CBD5E1',
     lineHeight: 19,
   },
   divider: {
     height: 1,
-    backgroundColor: '#334155',
+    backgroundColor: '#003566',
     marginVertical: 18,
   },
   secondaryActionButton: {
-    backgroundColor: '#334155',
+    backgroundColor: '#003566',
+    borderWidth: 1,
+    borderColor: '#FFC300',
     paddingVertical: 12,
     borderRadius: 8,
     alignItems: 'center',
     marginTop: 12,
   },
   secondaryActionText: {
-    color: '#F8FAFC',
+    color: '#FFD60A',
     fontSize: 14,
     fontWeight: '600',
   },
