@@ -106,6 +106,9 @@ class DnsVpnService : VpnService() {
       .addAddress(VIRTUAL_CLIENT_IP, VIRTUAL_PREFIX_LENGTH)
       .addDnsServer(VIRTUAL_DNS_IP)
       .addRoute(VIRTUAL_DNS_IP, 32)
+      .addAddress(VIRTUAL_CLIENT_IPV6, VIRTUAL_IPV6_PREFIX_LENGTH)
+      .addDnsServer(VIRTUAL_DNS_IPV6)
+      .addRoute(VIRTUAL_DNS_IPV6, 128)
       .setBlocking(true)
 
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -253,6 +256,9 @@ class DnsVpnService : VpnService() {
     private const val VIRTUAL_CLIENT_IP = "10.111.222.1"
     private const val VIRTUAL_DNS_IP = "10.111.222.2"
     private const val VIRTUAL_PREFIX_LENGTH = 30
+    private const val VIRTUAL_CLIENT_IPV6 = "fd00:10:111:222::1"
+    private const val VIRTUAL_DNS_IPV6 = "fd00:10:111:222::2"
+    private const val VIRTUAL_IPV6_PREFIX_LENGTH = 126
 
     private const val NOTIFICATION_CHANNEL_ID = "dns_vpn_channel"
     private const val NOTIFICATION_ID = 1001

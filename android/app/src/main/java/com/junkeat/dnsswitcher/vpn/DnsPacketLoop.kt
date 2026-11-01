@@ -149,12 +149,20 @@ class DnsPacketLoop(
   }
 
   private fun querySingleServer(dnsPayload: ByteArray, address: String, port: Int): ByteArray? {
-    val udpResponse = queryUdp(dnsPayload, address, port) ?: return null
+    val udpResponse = queryUdp(dnsPayload, address, port)
+      ?: (if (port == 53 && isAdGuardAddress(address)) queryUdp(dnsPayload, address, 5353) else null)
+      ?: return null
+
     if (isTruncatedDnsResponse(udpResponse)) {
-      return queryTcp(dnsPayload, address, port) ?: udpResponse
+      return queryTcp(dnsPayload, address, port)
+        ?: (if (port == 53 && isAdGuardAddress(address)) queryTcp(dnsPayload, address, 5353) else null)
+        ?: udpResponse
     }
     return udpResponse
   }
+
+  private fun isAdGuardAddress(address: String): Boolean =
+    address == "94.140.14.14" || address == "94.140.15.15"
 
   private fun queryUdp(dnsPayload: ByteArray, address: String, port: Int): ByteArray? {
     var socket: DatagramSocket? = null
