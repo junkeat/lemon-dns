@@ -133,6 +133,16 @@ class DnsSwitcherModule(
       } else {
         null
       }
+      val primaryIpv6Dns = if (profileMap.hasKey("primaryIpv6Dns") && !profileMap.isNull("primaryIpv6Dns")) {
+        profileMap.getString("primaryIpv6Dns")
+      } else {
+        null
+      }
+      val secondaryIpv6Dns = if (profileMap.hasKey("secondaryIpv6Dns") && !profileMap.isNull("secondaryIpv6Dns")) {
+        profileMap.getString("secondaryIpv6Dns")
+      } else {
+        null
+      }
       val port = if (profileMap.hasKey("port") && !profileMap.isNull("port")) {
         profileMap.getInt("port")
       } else {
@@ -144,6 +154,8 @@ class DnsSwitcherModule(
         name = name,
         primaryDns = primaryDns,
         secondaryDns = secondaryDns,
+        primaryIpv6Dns = primaryIpv6Dns,
+        secondaryIpv6Dns = secondaryIpv6Dns,
         port = port,
       )
 
@@ -272,6 +284,8 @@ class DnsSwitcherModule(
     putString("name", name)
     putString("primaryDns", primaryDns)
     putString("secondaryDns", secondaryDns ?: "")
+    putString("primaryIpv6Dns", primaryIpv6Dns ?: "")
+    putString("secondaryIpv6Dns", secondaryIpv6Dns ?: "")
     putInt("port", port)
     putBoolean("isBuiltIn", isBuiltIn)
   }

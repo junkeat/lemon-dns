@@ -126,11 +126,31 @@ class DnsPacketLoop(
       return
     }
 
-    val responseBytes = querySingleServer(query.dnsPayload, upstream.address, upstream.port)
-      ?: upstream.secondaryAddress?.let { secondary ->
-        if (running.get()) querySingleServer(query.dnsPayload, secondary, upstream.port) else null
-      }
-      ?: return
+    val candidates = if (query.ipVersion == 6) {
+      listOfNotNull(
+        upstream.primaryIpv6Address,
+        upstream.secondaryIpv6Address,
+        upstream.address,
+        upstream.secondaryAddress,
+      )
+    } else {
+      listOfNotNull(
+        upstream.address,
+        upstream.secondaryAddress,
+        upstream.primaryIpv6Address,
+        upstream.secondaryIpv6Address,
+      )
+    }
+
+    var responseBytes: ByteArray? = null
+    for (server in candidates) {
+      if (!running.get()) return
+      responseBytes = querySingleServer(query.dnsPayload, server, upstream.port)
+      if (responseBytes != null) break
+    }
+    if (responseBytes == null) {
+      return
+    }
 
     if (!running.get() || responseBytes.isEmpty()) {
       return
@@ -167,8 +187,13 @@ class DnsPacketLoop(
     return udpResponse
   }
 
-  private fun isAdGuardAddress(address: String): Boolean =
-    address == "94.140.14.14" || address == "94.140.15.15"
+  private fun isAdGuardAddress(address: String): Boolean {
+    val lower = address.lowercase()
+    return lower == "94.140.14.14" ||
+      lower == "94.140.15.15" ||
+      lower == "2a10:50c0::ad1:ff" ||
+      lower == "2a10:50c0::ad2:ff"
+  }
 
   private fun queryUdp(dnsPayload: ByteArray, address: String, port: Int): ByteArray? {
     var socket: DatagramSocket? = null

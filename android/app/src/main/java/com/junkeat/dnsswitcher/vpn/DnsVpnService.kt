@@ -207,10 +207,11 @@ class DnsVpnService : VpnService() {
     val notificationBuilder = Notification.Builder(this, NOTIFICATION_CHANNEL_ID)
 
     val secondarySuffix = upstream.secondaryAddress?.let { " • $it" } ?: ""
+    val ipv6Suffix = upstream.primaryIpv6Address?.let { " | $it" } ?: ""
 
     return notificationBuilder
       .setContentTitle("LemonDNS • ${upstream.name}")
-      .setContentText("Resolver: ${upstream.address}$secondarySuffix")
+      .setContentText("IPv4/v6: ${upstream.address}$secondarySuffix$ipv6Suffix")
       .setSmallIcon(R.drawable.ic_qs_dns)
       .setContentIntent(contentPendingIntent)
       .setOngoing(true)

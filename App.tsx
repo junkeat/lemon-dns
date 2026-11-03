@@ -40,6 +40,8 @@ function MainScreen() {
   const [nameInput, setNameInput] = useState('');
   const [primaryDnsInput, setPrimaryDnsInput] = useState('');
   const [secondaryDnsInput, setSecondaryDnsInput] = useState('');
+  const [primaryIpv6DnsInput, setPrimaryIpv6DnsInput] = useState('');
+  const [secondaryIpv6DnsInput, setSecondaryIpv6DnsInput] = useState('');
   const [portInput, setPortInput] = useState('53');
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -86,6 +88,8 @@ function MainScreen() {
     setNameInput('');
     setPrimaryDnsInput('');
     setSecondaryDnsInput('');
+    setPrimaryIpv6DnsInput('');
+    setSecondaryIpv6DnsInput('');
     setPortInput('53');
     setFormError(null);
     setScreen('editor');
@@ -96,6 +100,8 @@ function MainScreen() {
     setNameInput(profile.name);
     setPrimaryDnsInput(profile.primaryDns);
     setSecondaryDnsInput(profile.secondaryDns || '');
+    setPrimaryIpv6DnsInput(profile.primaryIpv6Dns || '');
+    setSecondaryIpv6DnsInput(profile.secondaryIpv6Dns || '');
     setPortInput(String(profile.port || 53));
     setFormError(null);
     setScreen('editor');
@@ -115,6 +121,8 @@ function MainScreen() {
         name: nameInput,
         primaryDns: primaryDnsInput,
         secondaryDns: secondaryDnsInput,
+        primaryIpv6Dns: primaryIpv6DnsInput,
+        secondaryIpv6Dns: secondaryIpv6DnsInput,
         port: parsedPort,
       });
       setState(next);
@@ -215,17 +223,26 @@ function MainScreen() {
                   {state.isRunning ? 'CONNECTED • NO LEAKS' : 'DISCONNECTED'}
                 </Text>
               </View>
-              <Text style={styles.tunnelTag}>TUN 10.111.222.2/32</Text>
+              <Text style={styles.tunnelTag}>IPv4 + IPv6 TUN</Text>
             </View>
 
             <Text style={styles.activeProfileTitle}>
               {state.activeProfile.name}
             </Text>
             <Text style={styles.activeProfileEndpoints}>
-              Primary: {state.activeProfile.primaryDns}:
-              {state.activeProfile.port}
+              IPv4: {state.activeProfile.primaryDns}
               {state.activeProfile.secondaryDns
-                ? `  •  Secondary: ${state.activeProfile.secondaryDns}`
+                ? ` • ${state.activeProfile.secondaryDns}`
+                : ''}
+              {state.activeProfile.port !== 53
+                ? ` (Port ${state.activeProfile.port})`
+                : ''}
+              {state.activeProfile.primaryIpv6Dns
+                ? `\nIPv6: ${state.activeProfile.primaryIpv6Dns}${
+                    state.activeProfile.secondaryIpv6Dns
+                      ? ` • ${state.activeProfile.secondaryIpv6Dns}`
+                      : ''
+                  }`
                 : ''}
             </Text>
 
@@ -296,11 +313,18 @@ function MainScreen() {
                     )}
                   </View>
                   <Text style={styles.profileIpText}>
-                    {profile.primaryDns}
+                    IPv4: {profile.primaryDns}
                     {profile.secondaryDns
                       ? `  •  ${profile.secondaryDns}`
                       : ''}
                     {profile.port !== 53 ? ` (Port ${profile.port})` : ''}
+                    {profile.primaryIpv6Dns
+                      ? `\nIPv6: ${profile.primaryIpv6Dns}${
+                          profile.secondaryIpv6Dns
+                            ? `  •  ${profile.secondaryIpv6Dns}`
+                            : ''
+                        }`
+                      : ''}
                   </Text>
                 </View>
 
@@ -362,6 +386,30 @@ function MainScreen() {
               autoCapitalize="none"
               value={secondaryDnsInput}
               onChangeText={setSecondaryDnsInput}
+            />
+
+            <Text style={styles.inputLabel}>
+              Primary DNS (IPv6, Optional)
+            </Text>
+            <TextInput
+              style={styles.textInput}
+              placeholder="e.g. 2606:4700:4700::1111"
+              placeholderTextColor="#64748B"
+              autoCapitalize="none"
+              value={primaryIpv6DnsInput}
+              onChangeText={setPrimaryIpv6DnsInput}
+            />
+
+            <Text style={styles.inputLabel}>
+              Secondary DNS (IPv6, Optional)
+            </Text>
+            <TextInput
+              style={styles.textInput}
+              placeholder="e.g. 2606:4700:4700::1001"
+              placeholderTextColor="#64748B"
+              autoCapitalize="none"
+              value={secondaryIpv6DnsInput}
+              onChangeText={setSecondaryIpv6DnsInput}
             />
 
             <Text style={styles.inputLabel}>UDP Port</Text>

@@ -44,8 +44,14 @@ class DnsProfileRepository private constructor(context: Context) {
         val seedVersion = prefs.getInt(KEY_SEED_VERSION, 1)
         if (seedVersion < CURRENT_SEED_VERSION) {
           for (preset in DnsProfile.defaultPresets()) {
-            if (profiles.none { it.id == preset.id }) {
+            val idx = profiles.indexOfFirst { it.id == preset.id }
+            if (idx < 0) {
               profiles.add(preset)
+            } else if (profiles[idx].primaryIpv6Dns.isNullOrBlank()) {
+              profiles[idx] = profiles[idx].copy(
+                primaryIpv6Dns = preset.primaryIpv6Dns,
+                secondaryIpv6Dns = preset.secondaryIpv6Dns,
+              )
             }
           }
           saveProfilesInternal(profiles)
@@ -115,11 +121,15 @@ class DnsProfileRepository private constructor(context: Context) {
     name: String,
     primaryDns: String,
     secondaryDns: String?,
+    primaryIpv6Dns: String? = null,
+    secondaryIpv6Dns: String? = null,
     port: Int,
   ): DnsProfile {
     val cleanName = name.trim()
     val cleanPrimary = primaryDns.trim()
     val cleanSecondary = secondaryDns?.trim()?.ifEmpty { null }
+    val cleanPrimaryV6 = primaryIpv6Dns?.trim()?.ifEmpty { null }
+    val cleanSecondaryV6 = secondaryIpv6Dns?.trim()?.ifEmpty { null }
 
     require(cleanName.isNotEmpty()) { "Profile name cannot be empty." }
     require(IpAddressValidator.isValidIpv4(cleanPrimary)) {
@@ -128,6 +138,16 @@ class DnsProfileRepository private constructor(context: Context) {
     if (cleanSecondary != null) {
       require(IpAddressValidator.isValidIpv4(cleanSecondary)) {
         "Secondary DNS must be a valid public IPv4 address or left blank."
+      }
+    }
+    if (cleanPrimaryV6 != null) {
+      require(IpAddressValidator.isValidIpv6(cleanPrimaryV6)) {
+        "Primary IPv6 DNS must be a valid IPv6 address (e.g. 2606:4700:4700::1111) or left blank."
+      }
+    }
+    if (cleanSecondaryV6 != null) {
+      require(IpAddressValidator.isValidIpv6(cleanSecondaryV6)) {
+        "Secondary IPv6 DNS must be a valid IPv6 address or left blank."
       }
     }
     require(IpAddressValidator.isValidPort(port)) {
@@ -147,6 +167,8 @@ class DnsProfileRepository private constructor(context: Context) {
         name = cleanName,
         primaryDns = cleanPrimary,
         secondaryDns = cleanSecondary,
+        primaryIpv6Dns = cleanPrimaryV6,
+        secondaryIpv6Dns = cleanSecondaryV6,
         port = port,
       ).also { currentList[existingIndex] = it }
     } else {
@@ -155,6 +177,8 @@ class DnsProfileRepository private constructor(context: Context) {
         name = cleanName,
         primaryDns = cleanPrimary,
         secondaryDns = cleanSecondary,
+        primaryIpv6Dns = cleanPrimaryV6,
+        secondaryIpv6Dns = cleanSecondaryV6,
         port = port,
         isBuiltIn = false,
       ).also { currentList.add(it) }
@@ -224,7 +248,7 @@ class DnsProfileRepository private constructor(context: Context) {
     private const val KEY_ACTIVE_PROFILE_ID = "active_profile_id"
     private const val KEY_START_ON_BOOT = "start_on_boot"
     private const val KEY_SEED_VERSION = "seed_version"
-    private const val CURRENT_SEED_VERSION = 2
+    private const val CURRENT_SEED_VERSION = 3
 
     @Volatile
     private var instance: DnsProfileRepository? = null

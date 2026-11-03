@@ -6,6 +6,8 @@ export interface DnsProfile {
   name: string;
   primaryDns: string;
   secondaryDns: string;
+  primaryIpv6Dns: string;
+  secondaryIpv6Dns: string;
   port: number;
   isBuiltIn: boolean;
 }
@@ -27,6 +29,8 @@ export interface SaveProfileInput {
   name: string;
   primaryDns: string;
   secondaryDns?: string;
+  primaryIpv6Dns?: string;
+  secondaryIpv6Dns?: string;
   port?: number;
 }
 

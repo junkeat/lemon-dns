@@ -133,6 +133,13 @@ class UdpPacketCodecTest {
     assertFalse(IpAddressValidator.isValidIpv4("224.0.0.1"))
     assertFalse(IpAddressValidator.isValidIpv4("255.255.255.255"))
     assertFalse(IpAddressValidator.isValidIpv4("01.1.1.1"))
+
+    assertTrue(IpAddressValidator.isValidIpv6("2606:4700:4700::1111"))
+    assertTrue(IpAddressValidator.isValidIpv6("2a10:50c0::ad1:ff"))
+    assertFalse(IpAddressValidator.isValidIpv6("::1"))
+    assertFalse(IpAddressValidator.isValidIpv6("fd00:10:111:222::2"))
+    assertFalse(IpAddressValidator.isValidIpv6("ff02::1"))
+    assertFalse(IpAddressValidator.isValidIpv6("2606::4700::1111"))
   }
 
   private fun onesComplementSum(bytes: ByteArray, offset: Int, length: Int): Int {

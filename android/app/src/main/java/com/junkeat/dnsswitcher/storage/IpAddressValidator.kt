@@ -31,5 +31,43 @@ object IpAddressValidator {
     return true
   }
 
+  fun isValidIpv6(input: String): Boolean {
+    val trimmed = input.trim().lowercase()
+    if (!trimmed.contains(':') || trimmed.startsWith("fd00:10:111:222:") || trimmed == "::" || trimmed == "::1") {
+      return false
+    }
+    // Split on "::" (at most one zero-compression marker allowed in IPv6)
+    val doubleColonParts = trimmed.split("::", limit = 3)
+    if (doubleColonParts.size > 2) {
+      return false
+    }
+    val leftGroups = if (doubleColonParts[0].isEmpty()) emptyList() else doubleColonParts[0].split(':')
+    val rightGroups = if (doubleColonParts.size == 2 && doubleColonParts[1].isNotEmpty()) {
+      doubleColonParts[1].split(':')
+    } else {
+      emptyList()
+    }
+    val totalGroups = leftGroups.size + rightGroups.size
+    if (doubleColonParts.size == 1 && totalGroups != 8) {
+      return false
+    }
+    if (doubleColonParts.size == 2 && totalGroups > 7) {
+      return false
+    }
+    for (group in leftGroups + rightGroups) {
+      if (group.isEmpty() || group.length > 4) {
+        return false
+      }
+      if (!group.all { it in '0'..'9' || it in 'a'..'f' }) {
+        return false
+      }
+    }
+    // Disallow multicast ff00::/8
+    if (trimmed.startsWith("ff")) {
+      return false
+    }
+    return true
+  }
+
   fun isValidPort(port: Int): Boolean = port in 1..65535
 }

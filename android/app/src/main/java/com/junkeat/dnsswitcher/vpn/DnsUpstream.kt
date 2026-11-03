@@ -8,6 +8,8 @@ data class DnsUpstream(
   val name: String,
   val address: String,
   val secondaryAddress: String? = null,
+  val primaryIpv6Address: String? = null,
+  val secondaryIpv6Address: String? = null,
   val port: Int = 53,
 ) {
   companion object {
@@ -16,6 +18,8 @@ data class DnsUpstream(
       name = "Cloudflare",
       address = "1.1.1.1",
       secondaryAddress = "1.0.0.1",
+      primaryIpv6Address = "2606:4700:4700::1111",
+      secondaryIpv6Address = "2606:4700:4700::1001",
       port = 53,
     )
   }
