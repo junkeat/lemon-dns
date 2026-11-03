@@ -4,7 +4,6 @@ import android.app.PendingIntent
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
-import android.net.VpnService
 import android.os.Build
 import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
@@ -35,31 +34,11 @@ class DnsTileService : TileService() {
   override fun onClick() {
     super.onClick()
     if (DnsVpnService.isRunning) {
-      val stopIntent = Intent(this, DnsVpnService::class.java).apply {
-        action = DnsVpnService.ACTION_STOP
-      }
-      startService(stopIntent)
-      updateTileState(forceRunning = false)
+      DnsVpnService.stop(this)
       return
     }
 
-    // Check if VPN permission is already granted
-    val prepareIntent = VpnService.prepare(this)
-    if (prepareIntent == null) {
-      val repository = DnsProfileRepository.getInstance(applicationContext)
-      val activeProfile = repository.getActiveProfile()
-      DnsVpnService.hotSwapUpstream(activeProfile.toUpstream())
-
-      val startIntent = Intent(this, DnsVpnService::class.java).apply {
-        action = DnsVpnService.ACTION_START
-      }
-      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-        startForegroundService(startIntent)
-      } else {
-        startService(startIntent)
-      }
-      updateTileState(forceRunning = true)
-    } else {
+    if (!DnsVpnService.start(this)) {
       // VPN consent not yet granted: open MainActivity so the user can approve the VPN dialog
       launchMainActivityAndCollapse()
     }
@@ -83,13 +62,12 @@ class DnsTileService : TileService() {
     }
   }
 
-  private fun updateTileState(forceRunning: Boolean? = null) {
+  private fun updateTileState() {
     val tile = qsTile ?: return
     val repository = DnsProfileRepository.getInstance(applicationContext)
     val activeProfile = repository.getActiveProfile()
-    val running = forceRunning ?: DnsVpnService.isRunning
 
-    if (running) {
+    if (DnsVpnService.isRunning) {
       tile.state = Tile.STATE_ACTIVE
       tile.label = "LemonDNS: ${activeProfile.name}"
       if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {

@@ -43,23 +43,26 @@ interface NativeDnsSwitcherModule {
   removeListeners(count: number): void;
 }
 
-const NativeDnsSwitcher: NativeDnsSwitcherModule = NativeModules.DnsSwitcher;
-const eventEmitter = new NativeEventEmitter(NativeModules.DnsSwitcher);
+const NativeDnsSwitcher: NativeDnsSwitcherModule | undefined =
+  NativeModules.DnsSwitcher;
+const eventEmitter = NativeDnsSwitcher
+  ? new NativeEventEmitter(NativeModules.DnsSwitcher)
+  : null;
 
 export const DnsSwitcher = {
-  getState: (): Promise<DnsSwitcherState> => NativeDnsSwitcher.getState(),
-  startVpn: (): Promise<DnsSwitcherState> => NativeDnsSwitcher.startVpn(),
-  stopVpn: (): Promise<DnsSwitcherState> => NativeDnsSwitcher.stopVpn(),
+  getState: (): Promise<DnsSwitcherState> => NativeDnsSwitcher!.getState(),
+  startVpn: (): Promise<DnsSwitcherState> => NativeDnsSwitcher!.startVpn(),
+  stopVpn: (): Promise<DnsSwitcherState> => NativeDnsSwitcher!.stopVpn(),
   setActiveProfile: (profileId: string): Promise<DnsSwitcherState> =>
-    NativeDnsSwitcher.setActiveProfile(profileId),
+    NativeDnsSwitcher!.setActiveProfile(profileId),
   saveProfile: (profile: SaveProfileInput): Promise<DnsSwitcherState> =>
-    NativeDnsSwitcher.saveProfile(profile),
+    NativeDnsSwitcher!.saveProfile(profile),
   deleteProfile: (profileId: string): Promise<DnsSwitcherState> =>
-    NativeDnsSwitcher.deleteProfile(profileId),
+    NativeDnsSwitcher!.deleteProfile(profileId),
   updateSettings: (settings: Partial<DnsSettings>): Promise<DnsSwitcherState> =>
-    NativeDnsSwitcher.updateSettings(settings),
+    NativeDnsSwitcher!.updateSettings(settings),
   restoreDefaultProfiles: (): Promise<DnsSwitcherState> =>
-    NativeDnsSwitcher.restoreDefaultProfiles(),
+    NativeDnsSwitcher!.restoreDefaultProfiles(),
 };
 
 export function useDnsSwitcherState() {
@@ -67,6 +70,9 @@ export function useDnsSwitcherState() {
   const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
+    if (!NativeDnsSwitcher) {
+      return;
+    }
     try {
       const next = await DnsSwitcher.getState();
       setState(next);
@@ -78,6 +84,9 @@ export function useDnsSwitcherState() {
 
   useEffect(() => {
     refresh();
+    if (!eventEmitter) {
+      return;
+    }
     const subscription = eventEmitter.addListener(
       'DnsSwitcherStateChanged',
       (nextState: unknown) => {

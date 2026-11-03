@@ -15,6 +15,8 @@ class DnsProfileRepository private constructor(context: Context) {
   private val prefs: SharedPreferences =
     context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
+  private var cachedProfiles: List<DnsProfile>? = null
+
   init {
     ensureSeeded()
   }
@@ -61,8 +63,10 @@ class DnsProfileRepository private constructor(context: Context) {
 
   @Synchronized
   fun getProfiles(): List<DnsProfile> {
-    val raw = prefs.getString(KEY_PROFILES_JSON, null) ?: return DnsProfile.defaultPresets()
-    return try {
+    cachedProfiles?.let { return it }
+    val raw = prefs.getString(KEY_PROFILES_JSON, null)
+      ?: return DnsProfile.defaultPresets().also { cachedProfiles = it }
+    val loaded = try {
       val array = JSONArray(raw)
       val list = ArrayList<DnsProfile>(array.length())
       for (i in 0 until array.length()) {
@@ -73,6 +77,8 @@ class DnsProfileRepository private constructor(context: Context) {
     } catch (_: Exception) {
       DnsProfile.defaultPresets()
     }
+    cachedProfiles = loaded
+    return loaded
   }
 
   @Synchronized
@@ -204,6 +210,7 @@ class DnsProfileRepository private constructor(context: Context) {
   }
 
   private fun saveProfilesInternal(profiles: List<DnsProfile>) {
+    cachedProfiles = profiles.toList()
     val array = JSONArray()
     for (profile in profiles) {
       array.put(profile.toJson())

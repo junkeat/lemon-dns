@@ -3,7 +3,6 @@ package com.junkeat.dnsswitcher.bridge
 import android.app.Activity
 import android.content.Intent
 import android.net.VpnService
-import android.os.Build
 import com.facebook.react.bridge.ActivityEventListener
 import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.Promise
@@ -16,6 +15,7 @@ import com.facebook.react.modules.core.DeviceEventManagerModule
 import com.junkeat.dnsswitcher.MainActivity
 import com.junkeat.dnsswitcher.storage.DnsProfile
 import com.junkeat.dnsswitcher.storage.DnsProfileRepository
+import com.junkeat.dnsswitcher.vpn.DnsTileService
 import com.junkeat.dnsswitcher.vpn.DnsVpnService
 
 /**
@@ -85,8 +85,7 @@ class DnsSwitcherModule(
         prepareAndLaunchVpn(activity, promise)
       } else {
         // No foreground activity; only works if VPN consent was already granted previously
-        if (VpnService.prepare(reactContext) == null) {
-          startVpnServiceInternal()
+        if (DnsVpnService.start(reactContext)) {
           promise.resolve(buildStateMap())
         } else {
           promise.reject("ERR_NO_ACTIVITY", "Cannot request VPN permission without an active screen.")
@@ -100,10 +99,7 @@ class DnsSwitcherModule(
   @ReactMethod
   fun stopVpn(promise: Promise) {
     try {
-      val intent = Intent(reactContext, DnsVpnService::class.java).apply {
-        action = DnsVpnService.ACTION_STOP
-      }
-      reactContext.startService(intent)
+      DnsVpnService.stop(reactContext)
       promise.resolve(buildStateMap())
     } catch (e: Exception) {
       promise.reject("ERR_STOP_VPN", e.message, e)
@@ -115,7 +111,7 @@ class DnsSwitcherModule(
     try {
       val profile = repository.setActiveProfile(profileId)
       DnsVpnService.hotSwapUpstream(profile.toUpstream())
-      com.junkeat.dnsswitcher.vpn.DnsTileService.requestTileSync(reactContext)
+      DnsTileService.requestTileSync(reactContext)
       promise.resolve(buildStateMap())
     } catch (e: Exception) {
       promise.reject("ERR_SET_ACTIVE_PROFILE", e.message, e)
@@ -156,6 +152,7 @@ class DnsSwitcherModule(
       } else {
         DnsVpnService.notifyExternalStateChange()
       }
+      DnsTileService.requestTileSync(reactContext)
 
       promise.resolve(buildStateMap())
     } catch (e: Exception) {
@@ -168,6 +165,7 @@ class DnsSwitcherModule(
     try {
       val activeAfterDelete = repository.deleteProfile(profileId)
       DnsVpnService.hotSwapUpstream(activeAfterDelete.toUpstream())
+      DnsTileService.requestTileSync(reactContext)
       promise.resolve(buildStateMap())
     } catch (e: Exception) {
       promise.reject("ERR_DELETE_PROFILE", e.message, e)
@@ -192,6 +190,7 @@ class DnsSwitcherModule(
     try {
       val active = repository.restoreDefaultProfiles()
       DnsVpnService.hotSwapUpstream(active.toUpstream())
+      DnsTileService.requestTileSync(reactContext)
       promise.resolve(buildStateMap())
     } catch (e: Exception) {
       promise.reject("ERR_RESTORE_DEFAULTS", e.message, e)
@@ -205,22 +204,8 @@ class DnsSwitcherModule(
       pendingStartPromise = promise
       activity.startActivityForResult(prepareIntent, REQUEST_CODE_VPN_PERMISSION)
     } else {
-      startVpnServiceInternal()
+      DnsVpnService.start(reactContext)
       promise.resolve(buildStateMap())
-    }
-  }
-
-  private fun startVpnServiceInternal() {
-    val activeProfile = repository.getActiveProfile()
-    DnsVpnService.hotSwapUpstream(activeProfile.toUpstream())
-
-    val intent = Intent(reactContext, DnsVpnService::class.java).apply {
-      action = DnsVpnService.ACTION_START
-    }
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-      reactContext.startForegroundService(intent)
-    } else {
-      reactContext.startService(intent)
     }
   }
 
@@ -237,7 +222,7 @@ class DnsSwitcherModule(
     pendingStartPromise = null
 
     if (resultCode == Activity.RESULT_OK) {
-      startVpnServiceInternal()
+      DnsVpnService.start(reactContext)
       promise.resolve(buildStateMap())
     } else {
       promise.reject("ERR_VPN_PERMISSION_DENIED", "VPN permission request was denied by user.")

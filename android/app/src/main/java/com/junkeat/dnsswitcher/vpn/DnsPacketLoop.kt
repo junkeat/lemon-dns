@@ -12,15 +12,16 @@ import java.net.DatagramSocket
 import java.net.InetAddress
 import java.net.InetSocketAddress
 import java.net.Socket
-import java.util.concurrent.Executors
+import java.util.concurrent.ArrayBlockingQueue
+import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 
 /**
- * Reads raw IPv4 DNS query packets from the TUN interface, forwards them over protected UDP sockets
+ * Reads raw IPv4 and IPv6 DNS query packets from the TUN interface, forwards them over protected UDP sockets
  * (with automatic RFC 1035 TCP fallback on truncated TC=1 responses) to the currently active
- * upstream DNS server, and writes raw IPv4 UDP responses back to the TUN interface.
+ * upstream DNS server, and writes raw UDP responses back to the TUN interface.
  *
  * Supports atomic hot-swapping of the upstream endpoint without closing the TUN interface or dropping
  * in-flight queries. Strictly never logs or stores DNS queries or domain names.
@@ -33,7 +34,14 @@ class DnsPacketLoop(
 
   private val running = AtomicBoolean(false)
   private val activeUpstream = AtomicReference(initialUpstream)
-  private val queryExecutor = Executors.newCachedThreadPool()
+  private val queryExecutor = ThreadPoolExecutor(
+    CORE_POOL_SIZE,
+    MAX_POOL_SIZE,
+    KEEP_ALIVE_SECONDS,
+    TimeUnit.SECONDS,
+    ArrayBlockingQueue(MAX_QUEUED_QUERIES),
+    ThreadPoolExecutor.DiscardOldestPolicy(),
+  )
   private val writeLock = Any()
   private var readerThread: Thread? = null
 
@@ -44,8 +52,6 @@ class DnsPacketLoop(
   fun setUpstream(upstream: DnsUpstream) {
     activeUpstream.set(upstream)
   }
-
-  fun getUpstream(): DnsUpstream = activeUpstream.get()
 
   fun start() {
     if (!running.compareAndSet(false, true)) {
@@ -245,6 +251,10 @@ class DnsPacketLoop(
   }
 
   companion object {
+    private const val CORE_POOL_SIZE = 4
+    private const val MAX_POOL_SIZE = 32
+    private const val KEEP_ALIVE_SECONDS = 60L
+    private const val MAX_QUEUED_QUERIES = 128
     private const val MAX_PACKET_SIZE = 32767
     private const val MAX_DNS_PAYLOAD_SIZE = 4096
     private const val UPSTREAM_TIMEOUT_MS = 3500

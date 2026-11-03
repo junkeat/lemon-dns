@@ -59,10 +59,11 @@ function MainScreen() {
     setBusy(true);
     setError(null);
     try {
-      const next = state.isRunning
-        ? await DnsSwitcher.stopVpn()
-        : await DnsSwitcher.startVpn();
-      setState(next);
+      if (state.isRunning) {
+        await DnsSwitcher.stopVpn();
+      } else {
+        await DnsSwitcher.startVpn();
+      }
     } catch (e: any) {
       setError(e?.message ?? 'Failed to toggle DNS VPN');
     } finally {

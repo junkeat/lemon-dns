@@ -23,9 +23,9 @@ object IpAddressValidator {
         return false
       }
     }
-    // Disallow 0.0.0.0, loopback 127.x.x.x, and our virtual TUN subnet 10.111.222.x
+    // Disallow 0.0.0.0/8, loopback 127.0.0.0/8, multicast/broadcast 224.0.0.0+, and our virtual TUN subnet 10.111.222.x
     val firstOctet = parts[0].toInt()
-    if (firstOctet == 0 || firstOctet == 127 || trimmed.startsWith("10.111.222.")) {
+    if (firstOctet == 0 || firstOctet == 127 || firstOctet >= 224 || trimmed.startsWith("10.111.222.")) {
       return false
     }
     return true

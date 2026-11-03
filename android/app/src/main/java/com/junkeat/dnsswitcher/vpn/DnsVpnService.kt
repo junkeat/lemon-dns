@@ -4,6 +4,7 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.net.VpnService
@@ -37,17 +38,6 @@ class DnsVpnService : VpnService() {
         stopSelf()
         DnsTileService.requestTileSync(applicationContext)
         return START_NOT_STICKY
-      }
-      ACTION_SWITCH_UPSTREAM -> {
-        val targetId = intent.getStringExtra(EXTRA_UPSTREAM_ID)
-        val profile = if (targetId != null) {
-          runCatching { repository.setActiveProfile(targetId) }.getOrElse { repository.getActiveProfile() }
-        } else {
-          repository.getActiveProfile()
-        }
-        applyUpstreamHotSwap(profile.toUpstream())
-        DnsTileService.requestTileSync(applicationContext)
-        return START_STICKY
       }
       else -> {
         val activeProfile = repository.getActiveProfile()
@@ -90,7 +80,7 @@ class DnsVpnService : VpnService() {
     val existingLoop = packetLoop
     if (existingLoop != null) {
       existingLoop.setUpstream(currentUpstream)
-      updateForegroundNotification()
+      promoteToForeground()
       notifyStateChanged()
       return
     }
@@ -156,12 +146,7 @@ class DnsVpnService : VpnService() {
       notifyStateChanged()
     }
 
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-      stopForeground(STOP_FOREGROUND_REMOVE)
-    } else {
-      @Suppress("DEPRECATION")
-      stopForeground(true)
-    }
+    stopForeground(STOP_FOREGROUND_REMOVE)
   }
 
   private fun promoteToForeground() {
@@ -186,18 +171,16 @@ class DnsVpnService : VpnService() {
   }
 
   private fun ensureNotificationChannel() {
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-      val notificationManager = getSystemService(NotificationManager::class.java)
-      val channel = NotificationChannel(
-        NOTIFICATION_CHANNEL_ID,
-        "LemonDNS Status",
-        NotificationManager.IMPORTANCE_LOW,
-      ).apply {
-        description = "Shows when LemonDNS is active"
-        setShowBadge(false)
-      }
-      notificationManager?.createNotificationChannel(channel)
+    val notificationManager = getSystemService(NotificationManager::class.java)
+    val channel = NotificationChannel(
+      NOTIFICATION_CHANNEL_ID,
+      "LemonDNS Status",
+      NotificationManager.IMPORTANCE_LOW,
+    ).apply {
+      description = "Shows when LemonDNS is active"
+      setShowBadge(false)
     }
+    notificationManager?.createNotificationChannel(channel)
   }
 
   private fun buildForegroundNotification(upstream: DnsUpstream): Notification {
@@ -221,12 +204,7 @@ class DnsVpnService : VpnService() {
       PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
     )
 
-    val notificationBuilder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-      Notification.Builder(this, NOTIFICATION_CHANNEL_ID)
-    } else {
-      @Suppress("DEPRECATION")
-      Notification.Builder(this)
-    }
+    val notificationBuilder = Notification.Builder(this, NOTIFICATION_CHANNEL_ID)
 
     val secondarySuffix = upstream.secondaryAddress?.let { " • $it" } ?: ""
 
@@ -249,8 +227,6 @@ class DnsVpnService : VpnService() {
   companion object {
     const val ACTION_START = "com.junkeat.dnsswitcher.action.START_VPN"
     const val ACTION_STOP = "com.junkeat.dnsswitcher.action.STOP_VPN"
-    const val ACTION_SWITCH_UPSTREAM = "com.junkeat.dnsswitcher.action.SWITCH_UPSTREAM"
-    const val EXTRA_UPSTREAM_ID = "extra_upstream_id"
 
     private const val VPN_SESSION_NAME = "LemonDNS"
     private const val VIRTUAL_CLIENT_IP = "10.111.222.1"
@@ -275,6 +251,41 @@ class DnsVpnService : VpnService() {
       private set
 
     private val stateListeners = java.util.concurrent.CopyOnWriteArraySet<() -> Unit>()
+
+    /**
+     * Starts the DNS VPN service if VPN permission has already been granted.
+     * Returns true if started (or already running), false if VPN consent is required.
+     */
+    fun start(context: Context): Boolean {
+      val appContext = context.applicationContext
+      if (prepare(appContext) != null) {
+        return false
+      }
+      val repository = DnsProfileRepository.getInstance(appContext)
+      val activeProfile = repository.getActiveProfile()
+      hotSwapUpstream(activeProfile.toUpstream())
+
+      if (isRunning && activeInstance != null) {
+        return true
+      }
+
+      val intent = Intent(appContext, DnsVpnService::class.java).apply {
+        action = ACTION_START
+      }
+      appContext.startForegroundService(intent)
+      return true
+    }
+
+    /**
+     * Requests the DNS VPN service to stop and close its TUN interface.
+     */
+    fun stop(context: Context) {
+      val appContext = context.applicationContext
+      val intent = Intent(appContext, DnsVpnService::class.java).apply {
+        action = ACTION_STOP
+      }
+      appContext.startService(intent)
+    }
 
     /**
      * Atomically hot-swaps the active upstream DNS server.

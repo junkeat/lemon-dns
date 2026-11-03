@@ -3,8 +3,6 @@ package com.junkeat.dnsswitcher.vpn
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.net.VpnService
-import android.os.Build
 import com.junkeat.dnsswitcher.storage.DnsProfileRepository
 
 /**
@@ -27,24 +25,8 @@ class BootReceiver : BroadcastReceiver() {
       return
     }
 
-    // Only start if VPN permission was already granted by the user
-    if (VpnService.prepare(context) != null) {
-      return
-    }
-
-    val activeProfile = repository.getActiveProfile()
-    DnsVpnService.hotSwapUpstream(activeProfile.toUpstream())
-
-    val serviceIntent = Intent(context, DnsVpnService::class.java).apply {
-      this.action = DnsVpnService.ACTION_START
-    }
-
     try {
-      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-        context.startForegroundService(serviceIntent)
-      } else {
-        context.startService(serviceIntent)
-      }
+      DnsVpnService.start(context)
     } catch (_: Exception) {
       // Guard against OS restrictions if background start is disallowed on custom OEM ROMs
     }
