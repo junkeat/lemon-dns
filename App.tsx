@@ -328,11 +328,13 @@ function MainScreen() {
                   </Text>
                 </View>
 
-                <TouchableOpacity
-                  style={styles.editButton}
-                  onPress={() => openEditProfile(profile)}>
-                  <Text style={styles.editButtonText}>Edit</Text>
-                </TouchableOpacity>
+                {!profile.isBuiltIn && (
+                  <TouchableOpacity
+                    style={styles.editButton}
+                    onPress={() => openEditProfile(profile)}>
+                    <Text style={styles.editButtonText}>Edit</Text>
+                  </TouchableOpacity>
+                )}
               </TouchableOpacity>
             );
           })}
